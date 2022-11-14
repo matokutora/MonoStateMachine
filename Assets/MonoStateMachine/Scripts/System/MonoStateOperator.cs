@@ -4,6 +4,9 @@ using UnityEngine;
 
 namespace MonoState.Opration
 {
+    /// <summary>
+    /// ステートを走らせるためのクラス
+    /// </summary>
     public class MonoStateOperator : MonoBehaviour
     {
         public System.Action Run { get; set; }

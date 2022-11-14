@@ -2,24 +2,31 @@ using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.VisualScripting;
+using MonoState.State;
+using MonoState.Data;
+using MonoState.Opration;
 
 namespace MonoState
 {
-    using MonoState.State;
-    using MonoState.Data;
-    using MonoState.Opration;
-
+    /// <summary>
+    /// ステートマシンの管理クラス
+    /// </summary>
+    /// <typeparam name="User">使用者</typeparam>
     public class MonoStateMachine<User> where User : Object
     {
-        User _user;
-
+        float _timer = 0;
+        float _intervalTime = 0;
         bool _isRun = false;
-        string _currentKey = null;
 
         MonoStateBase _currentState = null;
         Dictionary<string, MonoStateBase> _stateDic = new Dictionary<string, MonoStateBase>();
         MonoStateData _data = new MonoStateData();
 
+        User _user;
+
+        /// <summary>
+        /// ステートマシンを使用するかどうか
+        /// </summary>
         public bool IsRun
         {
             get => _isRun;
@@ -30,18 +37,39 @@ namespace MonoState
                 SetRun(value);
             }
         }
+        /// <summary>
+        /// 現在のステートキー
+        /// </summary>
+        public string CurrentKey { get; private set; } = null;
 
-        public MonoStateMachine(User user)
+        /// <summary>
+        /// 初期化
+        /// </summary>
+        /// <param name="user">使用者</param>
+        /// <param name="intervalTime">遷移するためのインターバル</param>
+        public MonoStateMachine(User user, float intervalTime = 0)
         {
             _user = user;
+            _intervalTime = intervalTime;
         }
 
+        /// <summary>
+        /// ステートの追加
+        /// </summary>
+        /// <param name="stateKey">ステートキー</param>
+        /// <param name="state">ステートの実体</param>
+        /// <returns></returns>
         public MonoStateMachine<User> AddState(System.Enum stateKey, MonoStateBase state)
         {
             _stateDic.Add(stateKey.ToString(), state);
             return this;
         }
 
+        /// <summary>
+        /// ステートで使用するデータの追加
+        /// </summary>
+        /// <param name="datable">IMonoDatableを継承されたインターフェース</param>
+        /// <returns></returns>
         public MonoStateMachine<User> AddMonoData(IMonoDatable datable)
         {
             _data.AddMonoData(datable);
@@ -69,8 +97,23 @@ namespace MonoState
 
         void OnProcess()
         {
-            
+            _currentState.OnExecute();
 
+            _timer += Time.deltaTime;
+            if (_timer < _intervalTime) return;
+            
+            string nextState = _currentState.OnExit()?.ToString();
+
+            if (nextState == default)
+            {
+                OnNext(_stateDic.Keys.First());
+                return;
+            }
+            
+            if (nextState != CurrentKey)
+            {
+                OnNext(nextState);
+            }
         }
 
         void OnNext(string nextState)
@@ -79,7 +122,9 @@ namespace MonoState
             stateBase.OnEntry();
 
             _currentState = stateBase;
-            _currentKey = nextState;
+            CurrentKey = nextState;
+
+            _timer = 0;
         }
     }
 }
